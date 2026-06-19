@@ -498,8 +498,11 @@ def export_frame(f, top_n):
 
 
 def build_excel(df, title):
-    from openpyxl.styles import Font, Alignment, PatternFill
-    from openpyxl.utils import get_column_letter
+    try:
+        from openpyxl.styles import Font, Alignment, PatternFill
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        return None
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as xw:
         df.to_excel(xw, index=False, sheet_name="Zestawienie", startrow=2)
@@ -693,15 +696,22 @@ def main():
     with ci[1].popover("🏷️ Znaczniki"):
         st.markdown(BADGE_HELP)
     max_n = max(10, len(f))
-    top_n = ci[2].number_input("Top N do Excela", min_value=10, max_value=max_n,
+    top_n = ci[2].number_input("Top N do zestawienia", min_value=10, max_value=max_n,
                                value=min(100, max_n), step=10)
-    xlsx = build_excel(export_frame(f, top_n),
-                       f"Almanach ligowy — {liga}" + (f" — {region_txt}" if region_txt else ""))
-    ci[3].download_button("⬇️ Pobierz zestawienie (Excel)", xlsx,
-                          file_name="zestawienie_playmaker.xlsx",
-                          mime=("application/vnd.openxmlformats-officedocument."
-                                "spreadsheetml.sheet"),
-                          use_container_width=True)
+    exp = export_frame(f, top_n)
+    title = f"Almanach ligowy — {liga}" + (f" — {region_txt}" if region_txt else "")
+    xlsx = build_excel(exp, title)
+    if xlsx is not None:
+        ci[3].download_button("⬇️ Pobierz zestawienie (Excel)", xlsx,
+                              file_name="zestawienie_playmaker.xlsx",
+                              mime=("application/vnd.openxmlformats-officedocument."
+                                    "spreadsheetml.sheet"),
+                              use_container_width=True)
+    else:
+        ci[3].download_button("⬇️ Pobierz zestawienie (CSV)",
+                              exp.to_csv(index=False).encode("utf-8-sig"),
+                              file_name="zestawienie_playmaker.csv", mime="text/csv",
+                              use_container_width=True)
 
     def znaczniki(r):
         z = []
